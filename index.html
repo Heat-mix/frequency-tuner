@@ -1,0 +1,1503 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#EAF6FF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="周波数チューナー">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="./app-icon.png">
+    <link rel="icon" href="./app-icon.png">
+    <title>周波数チューナー</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #eaf6ff;
+        --panel: rgba(255, 255, 255, 0.82);
+        --panel-2: #f7fcff;
+        --line: rgba(41, 119, 145, 0.22);
+        --line-strong: rgba(41, 119, 145, 0.48);
+        --text: #1e6077;
+        --title: #6f5aa8;
+        --mode-title: #765caf;
+        --muted: #5d7f8d;
+        --accent: #2f9fbd;
+        --accent-2: #8ed7e9;
+        --fader-soft: #eadfff;
+        --fader-mid: #d3bdf8;
+        --fader-strong: #a78be8;
+        --selected-pink: #ffd9e8;
+        --selected-pink-2: #fff0f6;
+        --selected-pink-border: #ef9fc2;
+        --danger: #d46b61;
+        --green: #2caa7a;
+        --shadow: 0 18px 56px rgba(35, 107, 133, 0.16);
+        --bottom-space: calc(18px + env(safe-area-inset-bottom));
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 50% -5%, rgba(255, 255, 255, 0.95), transparent 34%),
+          radial-gradient(circle at 100% 18%, rgba(142, 215, 233, 0.38), transparent 30%),
+          linear-gradient(180deg, #eaf6ff 0%, #f8fdff 58%, #dff2fb 100%),
+          var(--bg);
+        letter-spacing: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .app {
+        width: min(760px, 100%);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: calc(14px + env(safe-area-inset-top)) 14px var(--bottom-space);
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 10px;
+        min-height: 66px;
+        margin-bottom: 12px;
+      }
+
+      .brand {
+        display: grid;
+        grid-template-columns: 60px minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .app-logo {
+        width: 58px;
+        height: 58px;
+        flex: 0 0 auto;
+        border-radius: 18px;
+        box-shadow: 0 10px 26px rgba(35, 107, 133, 0.18);
+      }
+
+      .brand-text {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+        text-align: left;
+      }
+
+      .brand-text span {
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 850;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 0;
+        color: var(--title);
+        font-size: clamp(1.18rem, 4.35vw, 2.15rem);
+        line-height: 1.02;
+        white-space: nowrap;
+      }
+
+      h2 {
+        margin-bottom: 14px;
+        color: var(--mode-title);
+        font-size: 1.35rem;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: #a7c0ca;
+      }
+
+      .status-pill.is-playing .status-dot {
+        background: var(--green);
+        box-shadow: 0 0 18px rgba(85, 212, 135, 0.8);
+      }
+
+      .utility-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 0 0 12px;
+      }
+
+      .utility-button {
+        min-height: 46px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--mode-title);
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .screen {
+        display: none;
+      }
+
+      .screen.is-active {
+        display: block;
+      }
+
+      .hero {
+        min-height: 0;
+        padding: 18px 4px 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .hero p {
+        max-width: 30rem;
+        margin: 12px 0 0;
+        color: var(--muted);
+        line-height: 1.62;
+      }
+
+      .mode-grid {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .mode-button,
+      .primary-button,
+      .secondary-button,
+      .danger-button,
+      .preset-button,
+      .small-button {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        cursor: pointer;
+      }
+
+      .mode-button {
+        display: grid;
+        gap: 5px;
+        min-height: 76px;
+        padding: 14px 16px;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(216, 242, 251, 0.82));
+        color: var(--text);
+        text-align: left;
+        box-shadow: var(--shadow);
+      }
+
+      .mode-button strong {
+        color: var(--mode-title);
+        font-size: 1.12rem;
+      }
+
+      .mode-button span {
+        color: var(--muted);
+        line-height: 1.52;
+      }
+
+      .panel {
+        margin-top: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .screen-head {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .screen-title {
+        min-width: 0;
+      }
+
+      .screen-title h2 {
+        margin: 0;
+        color: var(--mode-title);
+      }
+
+      .screen-title p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .icon-button {
+        min-width: 52px;
+        min-height: 48px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #ffffff;
+        color: var(--text);
+        font-weight: 900;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      label.field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field span,
+      .group-label {
+        color: var(--title);
+        font-size: 0.88rem;
+        font-weight: 900;
+      }
+
+      input[type="number"],
+      select {
+        width: 100%;
+        min-height: 58px;
+        padding: 10px 12px;
+        border: 1px solid rgba(41, 119, 145, 0.34);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.96);
+        color: var(--text);
+        outline: none;
+        font-size: 1.25rem;
+      }
+
+      input[type="number"]:focus,
+      select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px rgba(47, 159, 189, 0.14);
+      }
+
+      .big-number {
+        font-size: clamp(1.5rem, 7vw, 2.5rem) !important;
+        font-weight: 900;
+      }
+
+      .wave-grid,
+      .noise-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .choice {
+        min-height: 58px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.86);
+        color: var(--text);
+        font-weight: 850;
+      }
+
+      .choice.is-active {
+        border-color: var(--selected-pink-border);
+        background: linear-gradient(145deg, var(--selected-pink), var(--selected-pink-2));
+        color: var(--mode-title);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 10px 24px rgba(239, 159, 194, 0.18);
+      }
+
+      .fader {
+        display: grid;
+        gap: 8px;
+      }
+
+      .fader-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--title);
+        font-weight: 900;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 36px;
+        accent-color: var(--fader-strong);
+      }
+
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 12px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--fader-soft), var(--fader-mid), var(--fader-strong));
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        width: 34px;
+        height: 34px;
+        margin-top: -11px;
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+        background: #8f72d4;
+        box-shadow: 0 5px 16px rgba(143, 114, 212, 0.28);
+      }
+
+      .transport {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .primary-button,
+      .secondary-button,
+      .danger-button {
+        min-height: 66px;
+        padding: 0 16px;
+        font-size: 1.16rem;
+        font-weight: 950;
+      }
+
+      .primary-button {
+        border-color: var(--selected-pink-border);
+        background: linear-gradient(145deg, var(--selected-pink), var(--selected-pink-2));
+        color: var(--mode-title);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 10px 24px rgba(239, 159, 194, 0.18);
+      }
+
+      .secondary-button {
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--text);
+      }
+
+      .danger-button {
+        border-color: rgba(212, 107, 97, 0.35);
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--danger);
+      }
+
+      .small-button {
+        min-height: 48px;
+        padding: 0 12px;
+        background: #ffffff;
+        color: var(--text);
+        font-weight: 850;
+      }
+
+      .export-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        align-items: end;
+      }
+
+      .readout {
+        display: grid;
+        gap: 4px;
+        min-height: 72px;
+        padding: 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.68);
+      }
+
+      .readout span {
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 800;
+      }
+
+      .readout strong {
+        color: var(--accent);
+        font-size: 1.55rem;
+      }
+
+      .preset-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .preset-button {
+        min-height: 64px;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(216, 242, 251, 0.82));
+        color: var(--text);
+        font-size: 1.12rem;
+        font-weight: 950;
+      }
+
+      .preset-button.is-active {
+        border-color: var(--selected-pink-border);
+        background: linear-gradient(145deg, var(--selected-pink), var(--selected-pink-2));
+        color: var(--mode-title);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 10px 24px rgba(239, 159, 194, 0.18);
+      }
+
+      .apply-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .note {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .help-list {
+        margin: 0;
+        padding-left: 1.4rem;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .divider {
+        height: 1px;
+        margin: 4px 0;
+        background: var(--line);
+      }
+
+      @media (max-width: 380px) {
+        .app {
+          padding-inline: 10px;
+        }
+
+        .topbar {
+          grid-template-columns: 1fr auto;
+          gap: 8px;
+        }
+
+        .brand {
+          grid-template-columns: 54px minmax(0, 1fr);
+          gap: 8px;
+        }
+
+        .app-logo {
+          width: 52px;
+          height: 52px;
+        }
+
+        h1 {
+          font-size: 1.08rem;
+        }
+
+        .brand-text span {
+          font-size: 0.68rem;
+        }
+
+        .utility-row {
+          grid-template-columns: 1fr;
+        }
+
+        .screen-head {
+          grid-template-columns: auto 1fr;
+        }
+
+        .screen-head .danger-button {
+          grid-column: 1 / -1;
+          min-height: 50px;
+        }
+
+        .two-col,
+        .transport,
+        .export-row,
+        .apply-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <div class="topbar">
+        <div class="brand">
+          <img class="app-logo" src="./app-icon.png" alt="周波数チューナーロゴ">
+          <div class="brand-text">
+            <span>Web Audio 試作版</span>
+            <h1>周波数チューナー</h1>
+          </div>
+        </div>
+        <div id="globalStatus" class="status-pill" aria-live="polite">
+          <i class="status-dot"></i>
+          <span>停止中</span>
+        </div>
+      </div>
+
+      <div class="utility-row">
+        <button id="audioResetButton" class="utility-button" type="button">音声リセット</button>
+        <button class="utility-button" type="button" data-open="help">使い方</button>
+      </div>
+
+      <section id="home" class="screen is-active">
+        <div class="hero">
+          <h2>モード選択</h2>
+          <p>iPhone Safariで使いやすいように、大きな入力欄とボタンで構成した自分用の周波数ツールです。</p>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-button" type="button" data-open="single">
+            <strong>単音モード</strong>
+            <span>1つの周波数を鳴らす。WAV書き出しにも対応。</span>
+          </button>
+          <button class="mode-button" type="button" data-open="dual">
+            <strong>左右差モード</strong>
+            <span>左・右・差分Hzを連動させてステレオ再生。ヘッドフォンまたはイヤホンの使用をおすすめします。</span>
+          </button>
+          <button class="mode-button" type="button" data-open="presets">
+            <strong>プリセットモード</strong>
+            <span>定番周波数と差分入力から単音・左右差へ反映。</span>
+          </button>
+          <button class="mode-button" type="button" data-open="metronome">
+            <strong>ビートメトロノーム</strong>
+            <span>Hzをクリック音に変換。BPM換算も表示。</span>
+          </button>
+          <button class="mode-button" type="button" data-open="noise">
+            <strong>ノイズモード</strong>
+            <span>ホワイト、ピンク、ブラウン、ブルー、バイオレットノイズ。</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="single" class="screen">
+        <div class="screen-head">
+          <button class="icon-button" type="button" data-back>戻る</button>
+          <div class="screen-title">
+            <h2>単音モード</h2>
+            <p>周波数を1つ鳴らします。</p>
+          </div>
+          <button class="danger-button" type="button" data-reset="single">リセット</button>
+        </div>
+        <div class="panel form-grid">
+          <label class="field">
+            <span>周波数 Hz</span>
+            <input id="singleFreq" class="big-number" type="number" inputmode="decimal" min="0.001" max="22000" step="0.001" value="432.000">
+          </label>
+          <div>
+            <div class="group-label">波形</div>
+            <div class="wave-grid" data-wave-group="singleWave">
+              <button class="choice is-active" type="button" data-wave="sine">サイン波</button>
+              <button class="choice" type="button" data-wave="triangle">三角波</button>
+              <button class="choice" type="button" data-wave="square">矩形波</button>
+              <button class="choice" type="button" data-wave="sawtooth">ノコギリ波</button>
+            </div>
+          </div>
+          <div class="fader">
+            <div class="fader-head"><span>音量</span><output id="singleVolOut">35%</output></div>
+            <input id="singleVolume" type="range" min="0" max="100" value="35">
+          </div>
+          <div class="fader">
+            <div class="fader-head"><span>左右バランス</span><output id="singlePanOut">中央</output></div>
+            <input id="singlePan" type="range" min="-100" max="100" value="0">
+          </div>
+          <div class="transport">
+            <button id="singlePlay" class="primary-button" type="button">再生</button>
+            <button id="singleStop" class="secondary-button" type="button">停止</button>
+          </div>
+          <div class="export-row">
+            <label class="field">
+              <span>WAV秒数</span>
+              <input id="singleSeconds" type="number" inputmode="decimal" min="0.1" max="600" step="0.1" value="5">
+            </label>
+            <button id="singleExport" class="secondary-button" type="button">WAV書き出し</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="dual" class="screen">
+        <div class="screen-head">
+          <button class="icon-button" type="button" data-back>戻る</button>
+          <div class="screen-title">
+            <h2>左右差モード</h2>
+            <p>左・右・差分Hzを自動計算します。</p>
+          </div>
+          <button class="danger-button" type="button" data-reset="dual">リセット</button>
+        </div>
+        <div class="panel form-grid">
+          <div class="two-col">
+            <label class="field">
+              <span>左周波数 Hz</span>
+              <input id="leftFreq" class="big-number" type="number" inputmode="decimal" min="0.001" max="22000" step="0.001" value="432.000">
+            </label>
+            <label class="field">
+              <span>右周波数 Hz</span>
+              <input id="rightFreq" class="big-number" type="number" inputmode="decimal" min="0.001" max="22000" step="0.001" value="439.830">
+            </label>
+          </div>
+          <label class="field">
+            <span>差分 Hz</span>
+            <input id="diffFreq" class="big-number" type="number" inputmode="decimal" min="-22000" max="22000" step="0.001" value="7.830">
+          </label>
+          <div>
+            <div class="group-label">波形</div>
+            <div class="wave-grid" data-wave-group="dualWave">
+              <button class="choice is-active" type="button" data-wave="sine">サイン波</button>
+              <button class="choice" type="button" data-wave="triangle">三角波</button>
+              <button class="choice" type="button" data-wave="square">矩形波</button>
+              <button class="choice" type="button" data-wave="sawtooth">ノコギリ波</button>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="fader">
+              <div class="fader-head"><span>左音量</span><output id="leftVolOut">35%</output></div>
+              <input id="leftVolume" type="range" min="0" max="100" value="35">
+            </div>
+            <div class="fader">
+              <div class="fader-head"><span>右音量</span><output id="rightVolOut">35%</output></div>
+              <input id="rightVolume" type="range" min="0" max="100" value="35">
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="fader">
+              <div class="fader-head"><span>左バランス</span><output id="leftPanOut">左</output></div>
+              <input id="leftPan" type="range" min="-100" max="100" value="-100">
+            </div>
+            <div class="fader">
+              <div class="fader-head"><span>右バランス</span><output id="rightPanOut">右</output></div>
+              <input id="rightPan" type="range" min="-100" max="100" value="100">
+            </div>
+          </div>
+          <div class="transport">
+            <button id="dualPlay" class="primary-button" type="button">再生</button>
+            <button id="dualStop" class="secondary-button" type="button">停止</button>
+          </div>
+          <div class="export-row">
+            <label class="field">
+              <span>WAV秒数</span>
+              <input id="dualSeconds" type="number" inputmode="decimal" min="0.1" max="600" step="0.1" value="5">
+            </label>
+            <button id="dualExport" class="secondary-button" type="button">WAV書き出し</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="presets" class="screen">
+        <div class="screen-head">
+          <button class="icon-button" type="button" data-back>戻る</button>
+          <div class="screen-title">
+            <h2>プリセットモード</h2>
+            <p>周波数を選んで各モードへ反映します。</p>
+          </div>
+          <button class="danger-button" type="button" data-reset="presets">リセット</button>
+        </div>
+        <div class="panel form-grid">
+          <div class="preset-grid" id="presetButtons"></div>
+          <div class="readout">
+            <span>選択中のプリセット</span>
+            <strong id="selectedPresetOut">432.000 Hz</strong>
+          </div>
+          <div class="apply-row">
+            <button id="applyPresetSingle" class="primary-button" type="button">単音へ反映</button>
+            <button id="applyPresetDual" class="secondary-button" type="button">左右差へ反映</button>
+          </div>
+          <div class="divider"></div>
+          <div class="two-col">
+            <label class="field">
+              <span>基準周波数 Hz</span>
+              <input id="presetBase" type="number" inputmode="decimal" min="0.001" max="22000" step="0.001" value="432.000">
+            </label>
+            <label class="field">
+              <span>差分 Hz</span>
+              <input id="presetDiff" type="number" inputmode="decimal" min="-22000" max="22000" step="0.001" value="7.830">
+            </label>
+          </div>
+          <div class="two-col">
+            <div class="readout">
+              <span>左</span>
+              <strong id="presetLeftOut">432.000 Hz</strong>
+            </div>
+            <div class="readout">
+              <span>右</span>
+              <strong id="presetRightOut">439.830 Hz</strong>
+            </div>
+          </div>
+          <button id="applyDiffDual" class="primary-button" type="button">この左右差を反映</button>
+        </div>
+      </section>
+
+      <section id="metronome" class="screen">
+        <div class="screen-head">
+          <button class="icon-button" type="button" data-back>戻る</button>
+          <div class="screen-title">
+            <h2>ビートメトロノーム</h2>
+            <p>Hzをクリック間隔に変換します。</p>
+          </div>
+          <button class="danger-button" type="button" data-reset="metronome">リセット</button>
+        </div>
+        <div class="panel form-grid">
+          <label class="field">
+            <span>クリック周波数 Hz</span>
+            <input id="metroHz" class="big-number" type="number" inputmode="decimal" min="0.01" max="40" step="0.001" value="7.830">
+          </label>
+          <div class="readout">
+            <span>BPM換算</span>
+            <strong id="bpmOut">469.800 BPM</strong>
+          </div>
+          <div class="fader">
+            <div class="fader-head"><span>音量</span><output id="metroVolOut">45%</output></div>
+            <input id="metroVolume" type="range" min="0" max="100" value="45">
+          </div>
+          <div class="transport">
+            <button id="metroPlay" class="primary-button" type="button">再生</button>
+            <button id="metroStop" class="secondary-button" type="button">停止</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="noise" class="screen">
+        <div class="screen-head">
+          <button class="icon-button" type="button" data-back>戻る</button>
+          <div class="screen-title">
+            <h2>ノイズモード</h2>
+            <p>色付きノイズを生成します。</p>
+          </div>
+          <button class="danger-button" type="button" data-reset="noise">リセット</button>
+        </div>
+        <div class="panel form-grid">
+          <div>
+            <div class="group-label">ノイズの種類</div>
+            <div class="noise-grid" id="noiseChoices">
+              <button class="choice is-active" type="button" data-noise="white">ホワイトノイズ</button>
+              <button class="choice" type="button" data-noise="pink">ピンクノイズ</button>
+              <button class="choice" type="button" data-noise="brown">ブラウンノイズ</button>
+              <button class="choice" type="button" data-noise="blue">ブルーノイズ</button>
+              <button class="choice" type="button" data-noise="violet">バイオレットノイズ</button>
+            </div>
+          </div>
+          <div class="fader">
+            <div class="fader-head"><span>音量</span><output id="noiseVolOut">30%</output></div>
+            <input id="noiseVolume" type="range" min="0" max="100" value="30">
+          </div>
+          <div class="transport">
+            <button id="noisePlay" class="primary-button" type="button">再生</button>
+            <button id="noiseStop" class="secondary-button" type="button">停止</button>
+          </div>
+          <div class="export-row">
+            <label class="field">
+              <span>WAV秒数</span>
+              <input id="noiseSeconds" type="number" inputmode="decimal" min="0.1" max="600" step="0.1" value="5">
+            </label>
+            <button id="noiseExport" class="secondary-button" type="button">WAV書き出し</button>
+          </div>
+          <p class="note">長い秒数の書き出しは端末によって少し時間がかかります。</p>
+        </div>
+      </section>
+
+      <section id="help" class="screen">
+        <div class="screen-head">
+          <button class="icon-button" type="button" data-back>戻る</button>
+          <div class="screen-title">
+            <h2>使い方</h2>
+            <p>音が不安定な時の対処もここで確認できます。</p>
+          </div>
+          <button class="danger-button" type="button" data-reset="help">リセット</button>
+        </div>
+        <div class="panel form-grid">
+          <p class="note">このアプリは、周波数を自由に鳴らして体感を確認するための試作ツールです。</p>
+          <div>
+            <div class="group-label">音が鳴らなくなった場合</div>
+            <ol class="help-list">
+              <li>停止を押す</li>
+              <li>音声リセットを押す</li>
+              <li>それでも戻らない時は、画面を上にスワイプして再起動する</li>
+            </ol>
+          </div>
+          <p class="note">長時間・大音量での使用は避けてください。小さめの音量から試してください。</p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const presetValues = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 4096];
+
+      let audioContext = null;
+      let active = [];
+      let activeTimers = [];
+      let metroTimer = null;
+      let metroNextTime = 0;
+      let restartTimer = null;
+      let currentPlayback = null;
+      let selectedSingleWave = "sine";
+      let selectedDualWave = "sine";
+      let selectedNoise = "white";
+      let selectedPreset = 432;
+      let dualAnchor = "left";
+
+      function numberValue(id, fallback = 0) {
+        const value = Number.parseFloat($(id).value);
+        return Number.isFinite(value) ? value : fallback;
+      }
+
+      function fixed(value) {
+        return Number(value).toFixed(3);
+      }
+
+      function percentText(value) {
+        return `${Math.round(Number(value))}%`;
+      }
+
+      function panText(value) {
+        const numeric = Number(value);
+        if (numeric === 0) return "中央";
+        return numeric < 0 ? `左 ${Math.abs(numeric)}%` : `右 ${numeric}%`;
+      }
+
+      function setStatus(playing, label) {
+        const status = $("#globalStatus");
+        status.classList.toggle("is-playing", playing);
+        status.querySelector("span").textContent = playing ? `再生中：${label}` : "停止中";
+      }
+
+      async function ensureAudio() {
+        if (!AudioCtx) {
+          alert("このブラウザはWeb Audio APIに対応していません。");
+          throw new Error("Web Audio API unavailable");
+        }
+        if (!audioContext) audioContext = new AudioCtx();
+        if (audioContext.state === "suspended") await audioContext.resume();
+      }
+
+      function registerAudioItem(item) {
+        active.push(item);
+        return item;
+      }
+
+      function disconnectNode(node) {
+        if (!node || typeof node.disconnect !== "function") return;
+        try {
+          node.disconnect();
+        } catch {}
+      }
+
+      function stopAudioItem(item) {
+        if (!item) return;
+        try {
+          if (item.gain && audioContext) {
+            item.gain.gain.cancelScheduledValues(audioContext.currentTime);
+            item.gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+          }
+        } catch {}
+        try {
+          if (item.source && typeof item.source.stop === "function") item.source.stop();
+        } catch {}
+        try {
+          if (item.stop) item.stop();
+        } catch {}
+        (item.nodes || []).forEach(disconnectNode);
+        disconnectNode(item.source);
+      }
+
+      function clearAudioTimers() {
+        if (metroTimer) window.clearInterval(metroTimer);
+        metroTimer = null;
+        activeTimers.forEach((timer) => window.clearTimeout(timer));
+        activeTimers = [];
+        if (restartTimer) window.clearTimeout(restartTimer);
+        restartTimer = null;
+      }
+
+      function stopAll() {
+        clearAudioTimers();
+        active.forEach(stopAudioItem);
+        active = [];
+        currentPlayback = null;
+        setStatus(false);
+      }
+
+      async function resetAudioEngine() {
+        stopAll();
+        const contextToClose = audioContext;
+        audioContext = null;
+        if (contextToClose && contextToClose.state !== "closed") {
+          try {
+            await contextToClose.close();
+          } catch {}
+        }
+        setStatus(false);
+      }
+
+      function restartActivePlayback() {
+        const mode = currentPlayback;
+        if (!mode) return;
+        stopAll();
+        restartTimer = window.setTimeout(() => {
+          restartTimer = null;
+          if (mode === "single") playSingle();
+          if (mode === "dual") playDual();
+          if (mode === "metronome") playMetronome();
+          if (mode === "noise") playNoise();
+        }, 120);
+      }
+
+      function createOscillatorTone({ role, frequency, wave, volume, pan }) {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const panner = audioContext.createStereoPanner ? audioContext.createStereoPanner() : null;
+        oscillator.type = wave;
+        oscillator.frequency.setValueAtTime(Math.max(0.001, frequency), audioContext.currentTime);
+        gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), audioContext.currentTime + 0.04);
+        oscillator.connect(gain);
+        if (panner) {
+          panner.pan.setValueAtTime(pan, audioContext.currentTime);
+          gain.connect(panner);
+          panner.connect(audioContext.destination);
+        } else {
+          gain.connect(audioContext.destination);
+        }
+        oscillator.start();
+        registerAudioItem({
+          role,
+          source: oscillator,
+          gain,
+          panner,
+          nodes: panner ? [oscillator, gain, panner] : [oscillator, gain]
+        });
+      }
+
+      async function playSingle() {
+        stopAll();
+        await ensureAudio();
+        createOscillatorTone({
+          role: "single",
+          frequency: numberValue("#singleFreq", 432),
+          wave: selectedSingleWave,
+          volume: numberValue("#singleVolume", 35) / 100,
+          pan: numberValue("#singlePan", 0) / 100
+        });
+        currentPlayback = "single";
+        setStatus(true, "単音");
+      }
+
+      async function playDual() {
+        stopAll();
+        await ensureAudio();
+        createOscillatorTone({
+          role: "left",
+          frequency: numberValue("#leftFreq", 432),
+          wave: selectedDualWave,
+          volume: numberValue("#leftVolume", 35) / 100,
+          pan: numberValue("#leftPan", -100) / 100
+        });
+        createOscillatorTone({
+          role: "right",
+          frequency: numberValue("#rightFreq", 439.83),
+          wave: selectedDualWave,
+          volume: numberValue("#rightVolume", 35) / 100,
+          pan: numberValue("#rightPan", 100) / 100
+        });
+        currentPlayback = "dual";
+        setStatus(true, "左右差");
+      }
+
+      function makeNoiseBuffer(context, type, seconds) {
+        const length = Math.max(1, Math.floor(context.sampleRate * seconds));
+        const buffer = context.createBuffer(1, length, context.sampleRate);
+        const data = buffer.getChannelData(0);
+        let lastWhite = 0;
+        let brown = 0;
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+
+        for (let i = 0; i < length; i += 1) {
+          const white = Math.random() * 2 - 1;
+          let sample = white;
+
+          if (type === "pink") {
+            b0 = 0.99886 * b0 + white * 0.0555179;
+            b1 = 0.99332 * b1 + white * 0.0750759;
+            b2 = 0.96900 * b2 + white * 0.1538520;
+            b3 = 0.86650 * b3 + white * 0.3104856;
+            b4 = 0.55000 * b4 + white * 0.5329522;
+            b5 = -0.7616 * b5 - white * 0.0168980;
+            sample = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+            sample *= 0.11;
+            b6 = white * 0.115926;
+          } else if (type === "brown") {
+            brown = (brown + 0.02 * white) / 1.02;
+            sample = brown * 3.5;
+          } else if (type === "blue") {
+            sample = (white - lastWhite) * 0.7;
+          } else if (type === "violet") {
+            sample = (white - 2 * lastWhite) * 0.5;
+          }
+
+          lastWhite = white;
+          data[i] = Math.max(-1, Math.min(1, sample));
+        }
+
+        return buffer;
+      }
+
+      async function playNoise() {
+        stopAll();
+        await ensureAudio();
+        const source = audioContext.createBufferSource();
+        const gain = audioContext.createGain();
+        source.buffer = makeNoiseBuffer(audioContext, selectedNoise, 2);
+        source.loop = true;
+        gain.gain.setValueAtTime(numberValue("#noiseVolume", 30) / 100, audioContext.currentTime);
+        source.connect(gain);
+        gain.connect(audioContext.destination);
+        source.start();
+        registerAudioItem({ role: "noise", source, gain, nodes: [source, gain] });
+        currentPlayback = "noise";
+        setStatus(true, "ノイズ");
+      }
+
+      function playClick(time, volume) {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        let item = null;
+        oscillator.type = "square";
+        oscillator.frequency.setValueAtTime(1200, time);
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(volume, time + 0.002);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.035);
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(time);
+        oscillator.stop(time + 0.04);
+        item = registerAudioItem({ role: "click", source: oscillator, gain, nodes: [oscillator, gain] });
+        oscillator.onended = () => {
+          disconnectNode(oscillator);
+          disconnectNode(gain);
+          active = active.filter((activeItem) => activeItem !== item);
+        };
+      }
+
+      async function playMetronome() {
+        stopAll();
+        await ensureAudio();
+        const hz = Math.max(0.01, numberValue("#metroHz", 7.83));
+        const interval = 1 / hz;
+        metroNextTime = audioContext.currentTime + 0.05;
+        metroTimer = window.setInterval(() => {
+          while (metroNextTime < audioContext.currentTime + 0.12) {
+            playClick(metroNextTime, numberValue("#metroVolume", 45) / 100);
+            metroNextTime += interval;
+          }
+        }, 25);
+        registerAudioItem({ role: "metronome", stop: () => window.clearInterval(metroTimer), nodes: [] });
+        currentPlayback = "metronome";
+        setStatus(true, "メトロノーム");
+      }
+
+      function setupNavigation() {
+        $$("[data-open]").forEach((button) => {
+          button.addEventListener("click", () => {
+            stopAll();
+            showScreen(button.dataset.open);
+          });
+        });
+        $$("[data-back]").forEach((button) => {
+          button.addEventListener("click", () => {
+            stopAll();
+            showScreen("home");
+          });
+        });
+      }
+
+      function showScreen(id) {
+        $$(".screen").forEach((screen) => screen.classList.toggle("is-active", screen.id === id));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function setupChoices() {
+        $$("[data-wave-group]").forEach((group) => {
+          group.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-wave]");
+            if (!button) return;
+            group.querySelectorAll(".choice").forEach((item) => item.classList.toggle("is-active", item === button));
+            if (group.dataset.waveGroup === "singleWave") selectedSingleWave = button.dataset.wave;
+            if (group.dataset.waveGroup === "dualWave") selectedDualWave = button.dataset.wave;
+            restartActivePlayback();
+          });
+        });
+        $("#noiseChoices").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-noise]");
+          if (!button) return;
+          $$("#noiseChoices .choice").forEach((item) => item.classList.toggle("is-active", item === button));
+          selectedNoise = button.dataset.noise;
+          restartActivePlayback();
+        });
+      }
+
+      function setupFaders() {
+        const pairs = [
+          ["#singleVolume", "#singleVolOut", percentText],
+          ["#singlePan", "#singlePanOut", panText],
+          ["#leftVolume", "#leftVolOut", percentText],
+          ["#rightVolume", "#rightVolOut", percentText],
+          ["#leftPan", "#leftPanOut", panText],
+          ["#rightPan", "#rightPanOut", panText],
+          ["#metroVolume", "#metroVolOut", percentText],
+          ["#noiseVolume", "#noiseVolOut", percentText]
+        ];
+
+        pairs.forEach(([inputId, outputId, formatter]) => {
+          const input = $(inputId);
+          const output = $(outputId);
+          const update = () => {
+            output.textContent = formatter(input.value);
+            applyLiveFader(inputId);
+          };
+          input.addEventListener("input", update);
+          update();
+        });
+      }
+
+      function applyLiveFader(inputId) {
+        if (!audioContext || !currentPlayback) return;
+        const now = audioContext.currentTime;
+        const setGain = (role, value) => {
+          active.filter((item) => item.role === role && item.gain).forEach((item) => {
+            item.gain.gain.setTargetAtTime(value, now, 0.015);
+          });
+        };
+        const setPan = (role, value) => {
+          active.filter((item) => item.role === role && item.panner).forEach((item) => {
+            item.panner.pan.setTargetAtTime(value, now, 0.015);
+          });
+        };
+
+        if (inputId === "#singleVolume") setGain("single", numberValue("#singleVolume", 35) / 100);
+        if (inputId === "#singlePan") setPan("single", numberValue("#singlePan", 0) / 100);
+        if (inputId === "#leftVolume") setGain("left", numberValue("#leftVolume", 35) / 100);
+        if (inputId === "#rightVolume") setGain("right", numberValue("#rightVolume", 35) / 100);
+        if (inputId === "#leftPan") setPan("left", numberValue("#leftPan", -100) / 100);
+        if (inputId === "#rightPan") setPan("right", numberValue("#rightPan", 100) / 100);
+        if (inputId === "#noiseVolume") setGain("noise", numberValue("#noiseVolume", 30) / 100);
+      }
+
+      function setupDualCalc() {
+        const left = $("#leftFreq");
+        const right = $("#rightFreq");
+        const diff = $("#diffFreq");
+
+        left.addEventListener("input", () => {
+          dualAnchor = "left";
+          diff.value = fixed(numberValue("#rightFreq") - numberValue("#leftFreq"));
+          restartActivePlayback();
+        });
+        right.addEventListener("input", () => {
+          dualAnchor = "right";
+          diff.value = fixed(numberValue("#rightFreq") - numberValue("#leftFreq"));
+          restartActivePlayback();
+        });
+        diff.addEventListener("input", () => {
+          if (dualAnchor === "right") left.value = fixed(numberValue("#rightFreq") - numberValue("#diffFreq"));
+          else right.value = fixed(numberValue("#leftFreq") + numberValue("#diffFreq"));
+          restartActivePlayback();
+        });
+      }
+
+      function setupPresets() {
+        const holder = $("#presetButtons");
+        presetValues.forEach((value) => {
+          const button = document.createElement("button");
+          button.className = "preset-button";
+          button.type = "button";
+          button.textContent = `${value} Hz`;
+          button.dataset.preset = String(value);
+          if (value === selectedPreset) button.classList.add("is-active");
+          button.addEventListener("click", () => {
+            selectedPreset = value;
+            updatePresetSelection();
+            $("#selectedPresetOut").textContent = `${fixed(value)} Hz`;
+            $("#presetBase").value = fixed(value);
+            updatePresetDiff();
+          });
+          holder.append(button);
+        });
+
+        $("#presetBase").addEventListener("input", updatePresetDiff);
+        $("#presetDiff").addEventListener("input", updatePresetDiff);
+        $("#applyPresetSingle").addEventListener("click", () => {
+          $("#singleFreq").value = fixed(selectedPreset);
+          showScreen("single");
+        });
+        $("#applyPresetDual").addEventListener("click", () => {
+          $("#leftFreq").value = fixed(selectedPreset);
+          $("#rightFreq").value = fixed(selectedPreset + numberValue("#presetDiff", 7.83));
+          $("#diffFreq").value = fixed(numberValue("#presetDiff", 7.83));
+          showScreen("dual");
+        });
+        $("#applyDiffDual").addEventListener("click", () => {
+          const base = numberValue("#presetBase", 432);
+          const diff = numberValue("#presetDiff", 7.83);
+          $("#leftFreq").value = fixed(base);
+          $("#rightFreq").value = fixed(base + diff);
+          $("#diffFreq").value = fixed(diff);
+          showScreen("dual");
+        });
+        updatePresetDiff();
+      }
+
+      function updatePresetSelection() {
+        $$("#presetButtons .preset-button").forEach((button) => {
+          button.classList.toggle("is-active", Number(button.dataset.preset) === selectedPreset);
+        });
+      }
+
+      function updatePresetDiff() {
+        const base = numberValue("#presetBase", 432);
+        const diff = numberValue("#presetDiff", 7.83);
+        $("#presetLeftOut").textContent = `${fixed(base)} Hz`;
+        $("#presetRightOut").textContent = `${fixed(base + diff)} Hz`;
+      }
+
+      function setupMetronome() {
+        const update = () => {
+          $("#bpmOut").textContent = `${fixed(numberValue("#metroHz", 7.83) * 60)} BPM`;
+          restartActivePlayback();
+        };
+        $("#metroHz").addEventListener("input", update);
+        $("#bpmOut").textContent = `${fixed(numberValue("#metroHz", 7.83) * 60)} BPM`;
+      }
+
+      function setupLiveRestart() {
+        $("#singleFreq").addEventListener("input", restartActivePlayback);
+      }
+
+      function setupTransport() {
+        $("#singlePlay").addEventListener("click", playSingle);
+        $("#singleStop").addEventListener("click", stopAll);
+        $("#dualPlay").addEventListener("click", playDual);
+        $("#dualStop").addEventListener("click", stopAll);
+        $("#metroPlay").addEventListener("click", playMetronome);
+        $("#metroStop").addEventListener("click", stopAll);
+        $("#noisePlay").addEventListener("click", playNoise);
+        $("#noiseStop").addEventListener("click", stopAll);
+        $("#audioResetButton").addEventListener("click", resetAudioEngine);
+        window.addEventListener("pagehide", stopAll);
+        window.addEventListener("beforeunload", stopAll);
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) stopAll();
+        });
+      }
+
+      function setupReset() {
+        $$("[data-reset]").forEach((button) => {
+          button.addEventListener("click", () => {
+            stopAll();
+            const mode = button.dataset.reset;
+            if (mode === "single") {
+              $("#singleFreq").value = "432.000";
+              $("#singleVolume").value = "35";
+              $("#singlePan").value = "0";
+            } else if (mode === "dual") {
+              $("#leftFreq").value = "432.000";
+              $("#rightFreq").value = "439.830";
+              $("#diffFreq").value = "7.830";
+              $("#leftVolume").value = "35";
+              $("#rightVolume").value = "35";
+              $("#leftPan").value = "-100";
+              $("#rightPan").value = "100";
+            } else if (mode === "presets") {
+              selectedPreset = 432;
+              updatePresetSelection();
+              $("#selectedPresetOut").textContent = "432.000 Hz";
+              $("#presetBase").value = "432.000";
+              $("#presetDiff").value = "7.830";
+              updatePresetDiff();
+            } else if (mode === "metronome") {
+              $("#metroHz").value = "7.830";
+              $("#metroVolume").value = "45";
+              $("#bpmOut").textContent = "469.800 BPM";
+            } else if (mode === "noise") {
+              $("#noiseVolume").value = "30";
+            }
+            updateFaderOutputs();
+          });
+        });
+      }
+
+      function updateFaderOutputs() {
+        $("#singleVolOut").textContent = percentText($("#singleVolume").value);
+        $("#singlePanOut").textContent = panText($("#singlePan").value);
+        $("#leftVolOut").textContent = percentText($("#leftVolume").value);
+        $("#rightVolOut").textContent = percentText($("#rightVolume").value);
+        $("#leftPanOut").textContent = panText($("#leftPan").value);
+        $("#rightPanOut").textContent = panText($("#rightPan").value);
+        $("#metroVolOut").textContent = percentText($("#metroVolume").value);
+        $("#noiseVolOut").textContent = percentText($("#noiseVolume").value);
+      }
+
+      function renderOfflineTone(context, frequency, wave, volume, pan, seconds) {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const panner = context.createStereoPanner ? context.createStereoPanner() : null;
+        oscillator.type = wave;
+        oscillator.frequency.value = Math.max(0.001, frequency);
+        gain.gain.value = Math.max(0, volume);
+        oscillator.connect(gain);
+        if (panner) {
+          panner.pan.value = pan;
+          gain.connect(panner);
+          panner.connect(context.destination);
+        } else {
+          gain.connect(context.destination);
+        }
+        oscillator.start(0);
+        oscillator.stop(seconds);
+      }
+
+      async function exportSingleWav() {
+        const seconds = Math.max(0.1, numberValue("#singleSeconds", 5));
+        if (!OfflineCtx) return alert("このブラウザはWAV書き出しに対応していません。");
+        const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
+        renderOfflineTone(context, numberValue("#singleFreq", 432), selectedSingleWave, numberValue("#singleVolume", 35) / 100, numberValue("#singlePan", 0) / 100, seconds);
+        downloadBuffer(await context.startRendering(), "単音.wav");
+      }
+
+      async function exportDualWav() {
+        const seconds = Math.max(0.1, numberValue("#dualSeconds", 5));
+        if (!OfflineCtx) return alert("このブラウザはWAV書き出しに対応していません。");
+        const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
+        renderOfflineTone(context, numberValue("#leftFreq", 432), selectedDualWave, numberValue("#leftVolume", 35) / 100, numberValue("#leftPan", -100) / 100, seconds);
+        renderOfflineTone(context, numberValue("#rightFreq", 439.83), selectedDualWave, numberValue("#rightVolume", 35) / 100, numberValue("#rightPan", 100) / 100, seconds);
+        downloadBuffer(await context.startRendering(), "左右差.wav");
+      }
+
+      async function exportNoiseWav() {
+        const seconds = Math.max(0.1, numberValue("#noiseSeconds", 5));
+        if (!OfflineCtx) return alert("このブラウザはWAV書き出しに対応していません。");
+        const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
+        const source = context.createBufferSource();
+        const gain = context.createGain();
+        const mono = makeNoiseBuffer(context, selectedNoise, seconds);
+        const stereo = context.createBuffer(2, mono.length, mono.sampleRate);
+        stereo.copyToChannel(mono.getChannelData(0), 0);
+        stereo.copyToChannel(mono.getChannelData(0), 1);
+        source.buffer = stereo;
+        gain.gain.value = numberValue("#noiseVolume", 30) / 100;
+        source.connect(gain);
+        gain.connect(context.destination);
+        source.start(0);
+        source.stop(seconds);
+        downloadBuffer(await context.startRendering(), "ノイズ.wav");
+      }
+
+      function audioBufferToWav(buffer) {
+        const channels = buffer.numberOfChannels;
+        const sampleRate = buffer.sampleRate;
+        const samples = buffer.length;
+        const bytesPerSample = 2;
+        const blockAlign = channels * bytesPerSample;
+        const dataSize = samples * blockAlign;
+        const arrayBuffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(arrayBuffer);
+
+        writeString(view, 0, "RIFF");
+        view.setUint32(4, 36 + dataSize, true);
+        writeString(view, 8, "WAVE");
+        writeString(view, 12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, channels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * blockAlign, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true);
+        writeString(view, 36, "data");
+        view.setUint32(40, dataSize, true);
+
+        let offset = 44;
+        for (let i = 0; i < samples; i += 1) {
+          for (let ch = 0; ch < channels; ch += 1) {
+            const sample = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+            offset += 2;
+          }
+        }
+
+        return new Blob([view], { type: "audio/wav" });
+      }
+
+      function writeString(view, offset, value) {
+        for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+      }
+
+      function downloadBuffer(buffer, filename) {
+        const blob = audioBufferToWav(buffer);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+      }
+
+      function setupExport() {
+        $("#singleExport").addEventListener("click", exportSingleWav);
+        $("#dualExport").addEventListener("click", exportDualWav);
+        $("#noiseExport").addEventListener("click", exportNoiseWav);
+      }
+
+      setupNavigation();
+      setupChoices();
+      setupFaders();
+      setupDualCalc();
+      setupPresets();
+      setupMetronome();
+      setupLiveRestart();
+      setupTransport();
+      setupReset();
+      setupExport();
+      setStatus(false);
+    </script>
+  </body>
+</html>
