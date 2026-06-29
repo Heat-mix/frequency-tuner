@@ -7,8 +7,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="周波数チューナー">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="description" content="周波数を自由に生成・再生できる、iPhone Safari向けの周波数チューナー試作アプリです。">
     <link rel="apple-touch-icon" href="./app-icon.png">
     <link rel="icon" href="./app-icon.png">
+    <link rel="manifest" href="./manifest.json">
     <title>周波数チューナー</title>
     <style>
       :root {
@@ -164,6 +166,37 @@
       .status-pill.is-playing .status-dot {
         background: var(--green);
         box-shadow: 0 0 18px rgba(85, 212, 135, 0.8);
+      }
+
+      .status-pill.is-error {
+        border-color: rgba(212, 107, 97, 0.48);
+        color: var(--danger);
+      }
+
+      .status-pill.is-error .status-dot {
+        background: var(--danger);
+      }
+
+      .audio-notice {
+        display: none;
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(212, 107, 97, 0.36);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--danger);
+        font-size: 0.84rem;
+        font-weight: 750;
+        line-height: 1.55;
+      }
+
+      .audio-notice.is-visible {
+        display: block;
+      }
+
+      .audio-notice.is-warning {
+        border-color: var(--selected-pink-border);
+        color: var(--mode-title);
       }
 
       .utility-row {
@@ -500,6 +533,21 @@
         line-height: 1.8;
       }
 
+      .version-info {
+        display: grid;
+        gap: 5px;
+        margin-top: 4px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.55;
+      }
+
+      .version-info p {
+        margin: 0;
+      }
+
       .divider {
         height: 1px;
         margin: 4px 0;
@@ -576,6 +624,8 @@
         <button id="audioResetButton" class="utility-button" type="button">音声リセット</button>
         <button class="utility-button" type="button" data-open="help">使い方</button>
       </div>
+
+      <div id="audioNotice" class="audio-notice" role="status" aria-live="polite"></div>
 
       <section id="home" class="screen is-active">
         <div class="hero">
@@ -850,6 +900,11 @@
             </ol>
           </div>
           <p class="note">長時間・大音量での使用は避けてください。小さめの音量から試してください。</p>
+          <div class="version-info" aria-label="バージョン情報">
+            <p>バージョン：v0.2.0</p>
+            <p>最終更新：2026年6月29日</p>
+            <p>更新内容：メトロノーム安定化・エラー表示改善・パン互換性改善</p>
+          </div>
         </div>
       </section>
     </main>
@@ -866,6 +921,7 @@
       let activeTimers = [];
       let metroTimer = null;
       let metroNextTime = 0;
+      let metroSession = 0;
       let restartTimer = null;
       let currentPlayback = null;
       let selectedSingleWave = "sine";
@@ -896,16 +952,53 @@
       function setStatus(playing, label) {
         const status = $("#globalStatus");
         status.classList.toggle("is-playing", playing);
+        status.classList.remove("is-error");
         status.querySelector("span").textContent = playing ? `再生中：${label}` : "停止中";
       }
 
+      function setErrorStatus(message) {
+        const status = $("#globalStatus");
+        status.classList.remove("is-playing");
+        status.classList.add("is-error");
+        status.querySelector("span").textContent = message;
+      }
+
+      function showAudioNotice(message, type = "error") {
+        const notice = $("#audioNotice");
+        notice.textContent = message;
+        notice.classList.add("is-visible");
+        notice.classList.toggle("is-warning", type === "warning");
+      }
+
+      function clearAudioNotice() {
+        const notice = $("#audioNotice");
+        notice.textContent = "";
+        notice.classList.remove("is-visible", "is-warning");
+      }
+
+      function reportPlaybackError(error) {
+        console.error("音声の再生に失敗しました。", error);
+        stopAll({ updateStatus: false });
+        setErrorStatus("音声を開始できませんでした");
+        showAudioNotice("音声が開始できませんでした。音声リセットを押してから、もう一度再生してください。iPhoneの場合は、マナーモード、音量、Bluetooth接続も確認してください。");
+      }
+
+      function reportExportError(error) {
+        console.error("WAV書き出しに失敗しました。", error);
+        setErrorStatus("WAV書き出しエラー");
+        showAudioNotice("WAV書き出しに失敗しました。秒数を短くして再試行してください。");
+      }
+
       async function ensureAudio() {
-        if (!AudioCtx) {
-          alert("このブラウザはWeb Audio APIに対応していません。");
-          throw new Error("Web Audio API unavailable");
+        try {
+          if (!AudioCtx) throw new Error("Web Audio API unavailable");
+          if (!audioContext || audioContext.state === "closed") audioContext = new AudioCtx();
+          if (audioContext.state !== "running") await audioContext.resume();
+          if (audioContext.state !== "running") throw new Error(`AudioContext state: ${audioContext.state}`);
+        } catch (error) {
+          console.error("AudioContextの生成または再開に失敗しました。", error);
+          throw error;
         }
-        if (!audioContext) audioContext = new AudioCtx();
-        if (audioContext.state === "suspended") await audioContext.resume();
       }
 
       function registerAudioItem(item) {
@@ -939,7 +1032,8 @@
       }
 
       function clearAudioTimers() {
-        if (metroTimer) window.clearInterval(metroTimer);
+        metroSession += 1;
+        if (metroTimer) window.clearTimeout(metroTimer);
         metroTimer = null;
         activeTimers.forEach((timer) => window.clearTimeout(timer));
         activeTimers = [];
@@ -947,12 +1041,12 @@
         restartTimer = null;
       }
 
-      function stopAll() {
+      function stopAll({ updateStatus = true } = {}) {
         clearAudioTimers();
         active.forEach(stopAudioItem);
         active = [];
         currentPlayback = null;
-        setStatus(false);
+        if (updateStatus) setStatus(false);
       }
 
       async function resetAudioEngine() {
@@ -962,8 +1056,14 @@
         if (contextToClose && contextToClose.state !== "closed") {
           try {
             await contextToClose.close();
-          } catch {}
+          } catch (error) {
+            console.error("AudioContextのリセットに失敗しました。", error);
+            setErrorStatus("音声リセットエラー");
+            showAudioNotice("音声リセットに失敗しました。画面を閉じてから、もう一度開いてください。");
+            return;
+          }
         }
+        clearAudioNotice();
         setStatus(false);
       }
 
@@ -980,10 +1080,24 @@
         }, 120);
       }
 
+      function createPannerOrNull(context) {
+        if (typeof context.createStereoPanner !== "function") {
+          showAudioNotice("このブラウザでは左右バランス機能が制限されます。音は中央定位で再生されます。", "warning");
+          return null;
+        }
+        try {
+          return context.createStereoPanner();
+        } catch (error) {
+          console.error("StereoPannerNodeを作成できませんでした。中央定位で再生します。", error);
+          showAudioNotice("このブラウザでは左右バランス機能が制限されます。音は中央定位で再生されます。", "warning");
+          return null;
+        }
+      }
+
       function createOscillatorTone({ role, frequency, wave, volume, pan }) {
         const oscillator = audioContext.createOscillator();
         const gain = audioContext.createGain();
-        const panner = audioContext.createStereoPanner ? audioContext.createStereoPanner() : null;
+        const panner = createPannerOrNull(audioContext);
         oscillator.type = wave;
         oscillator.frequency.setValueAtTime(Math.max(0.001, frequency), audioContext.currentTime);
         gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
@@ -1008,37 +1122,47 @@
 
       async function playSingle() {
         stopAll();
-        await ensureAudio();
-        createOscillatorTone({
-          role: "single",
-          frequency: numberValue("#singleFreq", 432),
-          wave: selectedSingleWave,
-          volume: numberValue("#singleVolume", 35) / 100,
-          pan: numberValue("#singlePan", 0) / 100
-        });
-        currentPlayback = "single";
-        setStatus(true, "単音");
+        clearAudioNotice();
+        try {
+          await ensureAudio();
+          createOscillatorTone({
+            role: "single",
+            frequency: numberValue("#singleFreq", 432),
+            wave: selectedSingleWave,
+            volume: numberValue("#singleVolume", 35) / 100,
+            pan: numberValue("#singlePan", 0) / 100
+          });
+          currentPlayback = "single";
+          setStatus(true, "単音");
+        } catch (error) {
+          reportPlaybackError(error);
+        }
       }
 
       async function playDual() {
         stopAll();
-        await ensureAudio();
-        createOscillatorTone({
-          role: "left",
-          frequency: numberValue("#leftFreq", 432),
-          wave: selectedDualWave,
-          volume: numberValue("#leftVolume", 35) / 100,
-          pan: numberValue("#leftPan", -100) / 100
-        });
-        createOscillatorTone({
-          role: "right",
-          frequency: numberValue("#rightFreq", 439.83),
-          wave: selectedDualWave,
-          volume: numberValue("#rightVolume", 35) / 100,
-          pan: numberValue("#rightPan", 100) / 100
-        });
-        currentPlayback = "dual";
-        setStatus(true, "左右差");
+        clearAudioNotice();
+        try {
+          await ensureAudio();
+          createOscillatorTone({
+            role: "left",
+            frequency: numberValue("#leftFreq", 432),
+            wave: selectedDualWave,
+            volume: numberValue("#leftVolume", 35) / 100,
+            pan: numberValue("#leftPan", -100) / 100
+          });
+          createOscillatorTone({
+            role: "right",
+            frequency: numberValue("#rightFreq", 439.83),
+            wave: selectedDualWave,
+            volume: numberValue("#rightVolume", 35) / 100,
+            pan: numberValue("#rightPan", 100) / 100
+          });
+          currentPlayback = "dual";
+          setStatus(true, "左右差");
+        } catch (error) {
+          reportPlaybackError(error);
+        }
       }
 
       function makeNoiseBuffer(context, type, seconds) {
@@ -1081,18 +1205,23 @@
 
       async function playNoise() {
         stopAll();
-        await ensureAudio();
-        const source = audioContext.createBufferSource();
-        const gain = audioContext.createGain();
-        source.buffer = makeNoiseBuffer(audioContext, selectedNoise, 2);
-        source.loop = true;
-        gain.gain.setValueAtTime(numberValue("#noiseVolume", 30) / 100, audioContext.currentTime);
-        source.connect(gain);
-        gain.connect(audioContext.destination);
-        source.start();
-        registerAudioItem({ role: "noise", source, gain, nodes: [source, gain] });
-        currentPlayback = "noise";
-        setStatus(true, "ノイズ");
+        clearAudioNotice();
+        try {
+          await ensureAudio();
+          const source = audioContext.createBufferSource();
+          const gain = audioContext.createGain();
+          source.buffer = makeNoiseBuffer(audioContext, selectedNoise, 2);
+          source.loop = true;
+          gain.gain.setValueAtTime(numberValue("#noiseVolume", 30) / 100, audioContext.currentTime);
+          source.connect(gain);
+          gain.connect(audioContext.destination);
+          source.start();
+          registerAudioItem({ role: "noise", source, gain, nodes: [source, gain] });
+          currentPlayback = "noise";
+          setStatus(true, "ノイズ");
+        } catch (error) {
+          reportPlaybackError(error);
+        }
       }
 
       function playClick(time, volume) {
@@ -1118,19 +1247,34 @@
 
       async function playMetronome() {
         stopAll();
-        await ensureAudio();
-        const hz = Math.max(0.01, numberValue("#metroHz", 7.83));
-        const interval = 1 / hz;
-        metroNextTime = audioContext.currentTime + 0.05;
-        metroTimer = window.setInterval(() => {
-          while (metroNextTime < audioContext.currentTime + 0.12) {
-            playClick(metroNextTime, numberValue("#metroVolume", 45) / 100);
-            metroNextTime += interval;
-          }
-        }, 25);
-        registerAudioItem({ role: "metronome", stop: () => window.clearInterval(metroTimer), nodes: [] });
-        currentPlayback = "metronome";
-        setStatus(true, "メトロノーム");
+        clearAudioNotice();
+        try {
+          await ensureAudio();
+          const hz = Math.min(40, Math.max(0.01, numberValue("#metroHz", 7.83)));
+          const interval = 1 / hz;
+          const session = ++metroSession;
+          metroNextTime = audioContext.currentTime + 0.05;
+
+          const scheduleAhead = () => {
+            if (session !== metroSession || currentPlayback !== "metronome" || !audioContext) return;
+            try {
+              const scheduleLimit = audioContext.currentTime + 0.12;
+              while (metroNextTime < scheduleLimit) {
+                playClick(metroNextTime, numberValue("#metroVolume", 45) / 100);
+                metroNextTime += interval;
+              }
+              metroTimer = window.setTimeout(scheduleAhead, 25);
+            } catch (error) {
+              reportPlaybackError(error);
+            }
+          };
+
+          currentPlayback = "metronome";
+          scheduleAhead();
+          setStatus(true, "メトロノーム");
+        } catch (error) {
+          reportPlaybackError(error);
+        }
       }
 
       function setupNavigation() {
@@ -1377,7 +1521,7 @@
       function renderOfflineTone(context, frequency, wave, volume, pan, seconds) {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
-        const panner = context.createStereoPanner ? context.createStereoPanner() : null;
+        const panner = createPannerOrNull(context);
         oscillator.type = wave;
         oscillator.frequency.value = Math.max(0.001, frequency);
         gain.gain.value = Math.max(0, volume);
@@ -1394,39 +1538,54 @@
       }
 
       async function exportSingleWav() {
-        const seconds = Math.max(0.1, numberValue("#singleSeconds", 5));
-        if (!OfflineCtx) return alert("このブラウザはWAV書き出しに対応していません。");
-        const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
-        renderOfflineTone(context, numberValue("#singleFreq", 432), selectedSingleWave, numberValue("#singleVolume", 35) / 100, numberValue("#singlePan", 0) / 100, seconds);
-        downloadBuffer(await context.startRendering(), "単音.wav");
+        clearAudioNotice();
+        try {
+          if (!OfflineCtx) throw new Error("OfflineAudioContext unavailable");
+          const seconds = Math.max(0.1, numberValue("#singleSeconds", 5));
+          const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
+          renderOfflineTone(context, numberValue("#singleFreq", 432), selectedSingleWave, numberValue("#singleVolume", 35) / 100, numberValue("#singlePan", 0) / 100, seconds);
+          downloadBuffer(await context.startRendering(), "単音.wav");
+        } catch (error) {
+          reportExportError(error);
+        }
       }
 
       async function exportDualWav() {
-        const seconds = Math.max(0.1, numberValue("#dualSeconds", 5));
-        if (!OfflineCtx) return alert("このブラウザはWAV書き出しに対応していません。");
-        const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
-        renderOfflineTone(context, numberValue("#leftFreq", 432), selectedDualWave, numberValue("#leftVolume", 35) / 100, numberValue("#leftPan", -100) / 100, seconds);
-        renderOfflineTone(context, numberValue("#rightFreq", 439.83), selectedDualWave, numberValue("#rightVolume", 35) / 100, numberValue("#rightPan", 100) / 100, seconds);
-        downloadBuffer(await context.startRendering(), "左右差.wav");
+        clearAudioNotice();
+        try {
+          if (!OfflineCtx) throw new Error("OfflineAudioContext unavailable");
+          const seconds = Math.max(0.1, numberValue("#dualSeconds", 5));
+          const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
+          renderOfflineTone(context, numberValue("#leftFreq", 432), selectedDualWave, numberValue("#leftVolume", 35) / 100, numberValue("#leftPan", -100) / 100, seconds);
+          renderOfflineTone(context, numberValue("#rightFreq", 439.83), selectedDualWave, numberValue("#rightVolume", 35) / 100, numberValue("#rightPan", 100) / 100, seconds);
+          downloadBuffer(await context.startRendering(), "左右差.wav");
+        } catch (error) {
+          reportExportError(error);
+        }
       }
 
       async function exportNoiseWav() {
-        const seconds = Math.max(0.1, numberValue("#noiseSeconds", 5));
-        if (!OfflineCtx) return alert("このブラウザはWAV書き出しに対応していません。");
-        const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
-        const source = context.createBufferSource();
-        const gain = context.createGain();
-        const mono = makeNoiseBuffer(context, selectedNoise, seconds);
-        const stereo = context.createBuffer(2, mono.length, mono.sampleRate);
-        stereo.copyToChannel(mono.getChannelData(0), 0);
-        stereo.copyToChannel(mono.getChannelData(0), 1);
-        source.buffer = stereo;
-        gain.gain.value = numberValue("#noiseVolume", 30) / 100;
-        source.connect(gain);
-        gain.connect(context.destination);
-        source.start(0);
-        source.stop(seconds);
-        downloadBuffer(await context.startRendering(), "ノイズ.wav");
+        clearAudioNotice();
+        try {
+          if (!OfflineCtx) throw new Error("OfflineAudioContext unavailable");
+          const seconds = Math.max(0.1, numberValue("#noiseSeconds", 5));
+          const context = new OfflineCtx(2, Math.ceil(44100 * seconds), 44100);
+          const source = context.createBufferSource();
+          const gain = context.createGain();
+          const mono = makeNoiseBuffer(context, selectedNoise, seconds);
+          const stereo = context.createBuffer(2, mono.length, mono.sampleRate);
+          stereo.copyToChannel(mono.getChannelData(0), 0);
+          stereo.copyToChannel(mono.getChannelData(0), 1);
+          source.buffer = stereo;
+          gain.gain.value = numberValue("#noiseVolume", 30) / 100;
+          source.connect(gain);
+          gain.connect(context.destination);
+          source.start(0);
+          source.stop(seconds);
+          downloadBuffer(await context.startRendering(), "ノイズ.wav");
+        } catch (error) {
+          reportExportError(error);
+        }
       }
 
       function audioBufferToWav(buffer) {
