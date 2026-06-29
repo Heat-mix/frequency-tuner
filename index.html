@@ -548,6 +548,15 @@
         margin: 0;
       }
 
+      .home-version {
+        margin: 18px 0 0;
+        padding: 10px 4px 2px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.4;
+        text-align: center;
+      }
+
       .divider {
         height: 1px;
         margin: 4px 0;
@@ -654,6 +663,7 @@
             <span>ホワイト、ピンク、ブラウン、ブルー、バイオレットノイズ。</span>
           </button>
         </div>
+        <footer class="home-version">バージョン：<span data-app-version></span></footer>
       </section>
 
       <section id="single" class="screen">
@@ -901,7 +911,7 @@
           </div>
           <p class="note">長時間・大音量での使用は避けてください。小さめの音量から試してください。</p>
           <div class="version-info" aria-label="バージョン情報">
-            <p>バージョン：v0.2.0</p>
+            <p>バージョン：<span data-app-version></span></p>
             <p>最終更新：2026年6月29日</p>
             <p>更新内容：メトロノーム安定化・エラー表示改善・パン互換性改善</p>
           </div>
@@ -915,6 +925,7 @@
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       const presetValues = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 4096];
+      const APP_VERSION = "v0.2.0";
 
       let audioContext = null;
       let active = [];
@@ -1646,6 +1657,13 @@
         $("#noiseExport").addEventListener("click", exportNoiseWav);
       }
 
+      function renderVersion() {
+        $$('[data-app-version]').forEach((element) => {
+          element.textContent = APP_VERSION;
+        });
+      }
+
+      renderVersion();
       setupNavigation();
       setupChoices();
       setupFaders();
