@@ -3,14 +3,14 @@
   "short_name": "周波数チューナー",
   "description": "周波数を自由に生成・再生できるWeb Audio試作アプリ",
   "lang": "ja",
-  "start_url": "./",
+  "start_url": "./?v=0.2.1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#EAF6FF",
   "theme_color": "#EAF6FF",
   "icons": [
     {
-      "src": "./app-icon.png",
+      "src": "./app-icon.png?v=0.2.1",
       "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any"
