@@ -8,9 +8,9 @@
     <meta name="apple-mobile-web-app-title" content="周波数チューナー">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="description" content="周波数を自由に生成・再生できる、iPhone Safari向けの周波数チューナー試作アプリです。">
-    <link rel="apple-touch-icon" href="./app-icon.png?v=0.2.1">
-    <link rel="icon" href="./app-icon.png?v=0.2.1">
-    <link rel="manifest" href="./manifest.json?v=0.2.1">
+    <link rel="apple-touch-icon" href="./app-icon.png?v=0.2.2">
+    <link rel="icon" href="./app-icon.png?v=0.2.2">
+    <link rel="manifest" href="./manifest.json?v=0.2.2">
     <title>周波数チューナー</title>
     <style>
       :root {
@@ -623,7 +623,7 @@
     <main class="app">
       <div class="topbar">
         <div class="brand">
-          <img class="app-logo" src="./app-icon.png?v=0.2.1" alt="周波数チューナーロゴ">
+          <img class="app-logo" src="./app-icon.png?v=0.2.2" alt="周波数チューナーロゴ">
           <div class="brand-text">
             <span>Web Audio 試作版</span>
             <h1>周波数チューナー</h1>
@@ -670,7 +670,7 @@
           </button>
         </div>
         <button id="latestVersionButton" class="utility-button latest-button" type="button">最新版確認</button>
-        <footer class="home-version">バージョン：<span data-app-version></span></footer>
+        <footer class="home-version">バージョン：<span data-app-version></span>｜最終更新：<span data-app-updated></span></footer>
       </section>
 
       <section id="single" class="screen">
@@ -907,20 +907,20 @@
           <button class="danger-button" type="button" data-reset="help">リセット</button>
         </div>
         <div class="panel form-grid">
-          <p class="note">このアプリは、周波数を自由に鳴らして体感を確認するための試作ツールです。</p>
+          <p class="note">このアプリは、周波数を自由に試すための試作ツールです。気になる周波数を入力して、音の違いを気軽に聴き比べられます。</p>
           <div>
             <div class="group-label">音が鳴らなくなった場合</div>
             <ol class="help-list">
-              <li>停止を押す</li>
-              <li>音声リセットを押す</li>
-              <li>それでも戻らない時は、画面を上にスワイプして再起動する</li>
+              <li>停止を押してから、音声リセットを押してください。</li>
+              <li>iPhoneの場合は、音量、マナーモード、Bluetooth接続も確認してください。</li>
+              <li>不安定な時は、Safariやホーム画面版を一度終了して、もう一度開いてください。</li>
             </ol>
           </div>
-          <p class="note">長時間・大音量での使用は避けてください。小さめの音量から試してください。</p>
+          <p class="note">小さめの音量から試してください。長時間・大音量での使用は避けてください。</p>
           <div class="version-info" aria-label="バージョン情報">
             <p>バージョン：<span data-app-version></span></p>
-            <p>最終更新：2026年6月29日</p>
-            <p>更新内容：ホーム画面追加版のキャッシュ対策・最新版確認機能追加</p>
+            <p>最終更新：<span data-app-updated></span></p>
+            <p>更新内容：<span data-app-update-summary></span></p>
           </div>
         </div>
       </section>
@@ -932,7 +932,9 @@
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       const presetValues = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963, 4096];
-      const APP_VERSION = "v0.2.1";
+      const APP_VERSION = "v0.2.2";
+      const APP_LAST_UPDATED = "2026年6月30日";
+      const APP_UPDATE_SUMMARY = "動作確認・使い方とREADMEの文章整備・アイコン軽量化";
       const CACHE_VERSION = APP_VERSION.replace(/^v/, "");
 
       let audioContext = null;
@@ -1669,13 +1671,19 @@
         $("#noiseExport").addEventListener("click", exportNoiseWav);
       }
 
-      function renderVersion() {
+      function renderReleaseInfo() {
         $$('[data-app-version]').forEach((element) => {
           element.textContent = APP_VERSION;
         });
+        $$('[data-app-updated]').forEach((element) => {
+          element.textContent = APP_LAST_UPDATED;
+        });
+        $$('[data-app-update-summary]').forEach((element) => {
+          element.textContent = APP_UPDATE_SUMMARY;
+        });
       }
 
-      renderVersion();
+      renderReleaseInfo();
       setupNavigation();
       setupChoices();
       setupFaders();
